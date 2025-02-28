@@ -11,10 +11,11 @@ from ..data.Features import (
     Monotonicity,
 )
 from ..data.Types import DataLike
+from ..spn.SPN import SPN
 
 
 def encode_contiguous(
-    mio: pyo.Block, init_val: float, feature: Contiguous
+    mio: pyo.Block, init_val: float, feature: Contiguous, mio_eps: float
 ) -> tuple[pyo.Var, list[pyo.Var]]:
     mio.cont_change = pyo.Set(initialize=["increase", "decrease"])
     mio.var = pyo.Var(bounds=(0, 1), initialize=init_val)
@@ -37,6 +38,18 @@ def encode_contiguous(
         expr=mio.var
         == init_val + mio.var_change["increase"] - mio.var_change["decrease"]
     )
+    # Added to avoid duplicate solutions
+    mio.exclusivity = pyo.Var(domain=pyo.Binary, initialize=0)
+    mio.is_inc = pyo.Constraint(expr=mio.var_change["increase"] <= mio.exclusivity)
+    mio.is_dec = pyo.Constraint(
+        expr=mio.var_change["decrease"] <= (1 - mio.exclusivity)
+    )
+    mio.fix_to_zero = pyo.Constraint(
+        expr=mio.var_change["decrease"] + mio.var_change["increase"]
+        >= mio_eps * mio.exclusivity
+    )
+    # ---end--- Added to avoid duplicate solutions
+
     if feature.discrete:
         mio.disc_shadow = pyo.Var(domain=pyo.Integers, bounds=feature.bounds)
         mio.discrete_fix = pyo.Constraint(
@@ -64,6 +77,7 @@ def encode_binary(
                 mio.change_constr = pyo.Constraint(expr=mio.var == 1 - mio.var_change)
     else:
         mio.change_constr = pyo.Constraint(expr=mio.var == init_val)
+        mio.no_change = pyo.Constraint(expr=mio.var_change == 0)
 
     return mio.var, [mio.var_change]
 
@@ -145,11 +159,15 @@ def encode_causal_increase(
     if isinstance(cause, Categorical):
         mio.has_increased = pyo.Constraint(
             expr=mio.activated
-            >= sum([cause_mio.var[i] for i in cause.greater_than(cause_init)])
+            == sum([cause_mio.var[i] for i in cause.greater_than(cause_init)])
         )
     elif isinstance(cause, Contiguous):
         mio.has_increased = pyo.Constraint(
             expr=mio.activated >= cause_mio.var_change["increase"]
+        )
+        # Added to avoid duplicate solutions
+        mio.fix_to_zero = pyo.Constraint(
+            expr=mio.activated * mio_eps <= cause_mio.var_change["increase"]
         )
     else:
         ValueError("Other feature types are not supported")
@@ -219,7 +237,7 @@ def encode_input_change(
     for cost, init_val, feature in zip(change_cost, normalized, data_handler.features):
         if isinstance(feature, Contiguous):
             var, changes = encode_contiguous(
-                mio_block.feature_blocks[feature.name], init_val, feature
+                mio_block.feature_blocks[feature.name], init_val, feature, mio_eps
             )
             cost = [cost[0], cost[0]]
         elif isinstance(feature, Binary):
@@ -290,21 +308,85 @@ def encode_input_change(
 
 
 def decode_input_change(
-    data_handler: DataHandler, mio_block: pyo.Block, factual: DataLike
+    data_handler: DataHandler,
+    mio_block: pyo.Block,
+    factual: DataLike,
+    # round_cont_to: float = np.inf,
+    mio_eps: float,
+    spn: SPN,
+    mio_spn: pyo.Block | None,
 ) -> np.ndarray:
     res = []
     for feature, val in zip(data_handler.features, factual):
         var_change = mio_block.feature_blocks[feature.name].var_change
         if isinstance(feature, Contiguous):
-            res.append(
-                feature.decode(
-                    feature.encode(val, normalize=True)
-                    + var_change["increase"].value
-                    - var_change["decrease"].value,
-                    denormalize=True,
-                    return_series=False,
-                )
+            value = (
+                feature.encode(val, normalize=True)
+                + var_change["increase"].value
+                - var_change["decrease"].value
             )
+            # np.round(value, int(-np.log10(mio_eps)))
+            # if mio_spn is not None:
+            # for node in spn.nodes:
+            #     if (
+            #         hasattr(node, "scope")
+            #         and node.scope
+            #         < data_handler.n_features  # target feature is not relevant
+            #         and feature == data_handler.features[node.scope]
+            #     ):
+            #         histogram = mio_spn.find_component(f"HistLeaf{node.id}")
+            #         breaks, _ = node.get_breaks_densities(span_all=True)
+            #         # omit the last bin, the upper bound is not strict
+            #         for bin in range(len(breaks) - 2):
+            #             if histogram.not_in_bin[bin].value == 0:
+            #                 value = np.clip(
+            #                     value, breaks[bin], breaks[bin + 1] - 1e-10
+            #                 )
+            #                 break
+            #         else:
+            #             if histogram.not_in_bin[len(breaks) - 2].value != 0:
+            #                 raise ValueError("No 0 bin")
+            # for node in reversed(spn.nodes):
+            #     relevant_nodes = [spn.out_node_id]
+            #     if node.id in relevant_nodes:
+            #         if hasattr(node, "predecessors"):
+            #             slacks = mio_spn.find_component(
+            #                 f"SumSlackIndicators{node.id}"
+            #             )
+            #             if slacks is None:
+            #                 relevant_nodes += [p.id for p in node.predecessors]
+            #                 continue
+            #             for p in node.predecessors:
+            #                 if slacks[p.id].value == 0:
+            #                     relevant_nodes.append(p.id)
+            #         elif (
+            #             hasattr(node, "scope")
+            #             and node.scope
+            #             < data_handler.n_features  # target feature is not relevant
+            #             and feature == data_handler.features[node.scope]
+            #         ):
+            #             histogram = mio_spn.find_component(f"HistLeaf{node.id}")
+            #             breaks, _ = node.get_breaks_densities(span_all=True)
+            #             # omit the last bin, the upper bound is not strict
+            #             for bin in range(len(breaks) - 2):
+            #                 if histogram.not_in_bin[bin].value == 0:
+            #                     value = np.clip(
+            #                         value, breaks[bin], breaks[bin + 1] - 1e-10
+            #                     )
+            #                     break
+            #             else:
+            #                 if histogram.not_in_bin[len(breaks) - 2].value != 0:
+            #                     raise ValueError("No 0 bin")
+
+            value = feature.decode(
+                value,
+                denormalize=True,
+                return_series=False,
+                discretize=True,
+            )
+            round_cont_to = int(-np.log10(mio_eps))
+            value = np.round(value, round_cont_to)
+            res.append(value)
         elif isinstance(feature, Binary):
             res.append(
                 feature.decode(

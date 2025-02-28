@@ -401,5 +401,6 @@ class DataHandler:
                 > post_vals[self.features.index(greater)]
             ):
                 return False
+        return True
 
     # TODO dalsi nadstavba - datawrapper - ktera si bude pamatovat jestli se slo one-hot, normalizovalo atd

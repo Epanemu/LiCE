@@ -59,6 +59,7 @@ class Binary(Feature):
         vals: np.ndarray[np.float64],
         denormalize: bool = True,
         return_series: bool = True,
+        discretize: bool = False,
     ) -> OneDimData:
         if not np.isin(vals, [0, 1]).all():
             raise ValueError(
@@ -81,7 +82,12 @@ class Binary(Feature):
         # return 2 if one_hot else 1
         return 1
 
-    def allowed_change(self, pre_val: CategValue, post_val: CategValue) -> bool:
+    def allowed_change(
+        self, pre_val: CategValue, post_val: CategValue, encoded=True
+    ) -> bool:
+        if not encoded:
+            pre_val = self.encode([pre_val], one_hot=False)[0]
+            post_val = self.encode([post_val], one_hot=False)[0]
         if self.modifiable:
             if self.monotone == Monotonicity.INCREASING:
                 return pre_val == self.__negative_val or post_val == self.__positive_val

@@ -86,7 +86,9 @@ class Feature(ABC):
         self,
         vals: np.ndarray[np.float64],
         denormalize: bool = True,
+        # one_hot: bool = True, #TODO add this too
         return_series: bool = True,
+        discretize: bool = False,
     ) -> OneDimData:
         """Decodes the vals into the original form"""
 
@@ -95,7 +97,7 @@ class Feature(ABC):
         """Returns the width of the encoded values, i.e., the size in teh second dimension (axis 1)"""
 
     @abstractmethod
-    def allowed_change(self, pre_val, post_val) -> bool:
+    def allowed_change(self, pre_val, post_val, encoded: bool) -> bool:
         """Checks whether value change from pre_val to post_val is allowed by mutability and similar properties"""
 
     # TODO do some __repr__()?

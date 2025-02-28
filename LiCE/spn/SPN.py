@@ -31,9 +31,11 @@ class Node:
         self,
         node: SPFlow_Node,
         feature_list: list[Feature],
-        normalize=True,  # pointless
-        one_hot=False,  # pointless
+        normalize: bool,
+        min_density: float,
     ):
+        self.__normalize = normalize
+        self.__min_density = min_density
         if isinstance(node, Leaf):
             self.densities = list(node.densities)
             if isinstance(node.scope, list):
@@ -42,21 +44,22 @@ class Node:
                 self.scope = node.scope[0]
             else:
                 self.scope = node.scope
-            if isinstance(feature_list[self.scope], Categorical):
+            self.feature = feature_list[self.scope]
+            if isinstance(self.feature, Categorical):
                 self.type = NodeType.LEAF_CATEGORICAL
-                self.options = feature_list[self.scope].numeric_vals
-            elif isinstance(feature_list[self.scope], Binary):
+                self.options = self.feature.numeric_vals
+            elif isinstance(self.feature, Binary):
                 self.type = NodeType.LEAF_BINARY
             else:
                 self.type = NodeType.LEAF
                 # print(node.id, node.breaks, node.densities)
-                self.discrete = feature_list[self.scope].discrete
+                self.discrete = self.feature.discrete
                 if self.discrete:
                     self.breaks = [b - 0.5 for b in node.breaks]
                 else:
                     self.breaks = list(node.breaks)
                 dens = node.densities
-                duplicate = np.isclose(dens[1:], dens[:-1], atol=1e-10)
+                duplicate = np.isclose(dens[1:], dens[:-1], rtol=1e-10)
                 self.densities = [dens[0]] + list(np.array(dens[1:])[~duplicate])
                 self.breaks = (
                     [self.breaks[0]]
@@ -80,9 +83,48 @@ class Node:
             raise ValueError("")
         self.name = node.name
         self.id = node.id
-        # TODO make the predecessors also of this class, not the spflow one
+        # TODO make the predecessors also of this class, not the spflow one - or better yet, make this only a list of ids
         # TODO rework this so that the nodes are remembered in the SPN class, and not generated on demand
         self.predecessors = node.children if hasattr(node, "children") else []
+
+    def get_breaks_densities(
+        self, span_all=True
+    ) -> tuple[np.ndarray[float], np.ndarray[float]]:
+        """Retruns the breakpoints rescaled to 0-1 range
+
+        Args:
+            span_all (bool, optional): If True, the breaks will span the entire range of input feature. Defaults to True.
+
+        Raises:
+            ValueError: If called for a node that is not a leaf node over a contiguous feature
+            AssertionError: If the feature bounds are not available
+
+        Returns:
+            tuple[np.ndarray[float], np.ndarray[float]]: Breakpoints, Density values
+        """
+        if not hasattr(self, "feature") or not isinstance(self.feature, Contiguous):
+            raise ValueError("Only available to leaves over contiguous features")
+
+        density_vals = self.densities
+        breaks = self.breaks
+
+        if span_all:
+            lb, ub = (0, 1) if self.__normalize else self.feature.bounds
+            if lb is None or ub is None:
+                raise AssertionError("SPN input variables must have fixed bounds.")
+            # if histogram is narrower than the input bounds
+            if lb < breaks[0]:
+                breaks = [lb] + breaks
+                density_vals = [self.__min_density] + density_vals
+            if ub > breaks[-1]:
+                breaks = breaks + [ub]
+                density_vals = density_vals + [self.__min_density]
+
+        # if the breaks are not normalized, normalize them now
+        if not self.__normalize:
+            breaks = self.feature.encode(breaks, normalize=True, one_hot=False)
+
+        return np.array(breaks), np.array(density_vals)
 
 
 class SPN:
@@ -136,7 +178,7 @@ class SPN:
         self.__data_handler = data_handler
         self.__mspn = learn_mspn(enc_data, context, **learn_mspn_kwargs)
         self.__nodes = [
-            Node(node, self.__feature_list)
+            Node(node, self.__feature_list, self.__normalize_data, self.min_density)
             for node in get_topological_order(self.__mspn)
         ]
 
@@ -150,11 +192,58 @@ class SPN:
             ),
         )
 
+    def compute_max_approx(self, data: DataLike, return_all: bool = False):
+        if len(data.shape) != 1 or (data.shape[0] != 1 and len(data.shape) == 2):
+            raise ValueError("Can do only one sample, so far...")
+
+        input_data = self.__data_handler.encode_all(
+            data.reshape(1, -1), normalize=self.__normalize_data, one_hot=False
+        )[0]
+
+        node_vals = {}
+        # node_ex_vals = {}
+        for node in self.nodes:
+            if node.type == NodeType.LEAF:
+                for val, b in zip(
+                    [self.min_density] + node.densities + [self.min_density],
+                    node.breaks + [np.inf],
+                ):
+                    value = np.log(val)
+                    if b > input_data[node.scope]:
+                        break
+            if node.type == NodeType.LEAF_BINARY:
+                value = np.log(node.densities[input_data[node.scope].astype(int)])
+            if node.type == NodeType.LEAF_CATEGORICAL:
+                value = np.log(node.densities[input_data[node.scope].astype(int)])
+            # node_ex_vals[node.id] = value
+            if node.type == NodeType.PRODUCT:
+                value = sum(node_vals[n.id] for n in node.predecessors)
+                # node_ex_vals[node.id] = sum(
+                #     node_ex_vals[n.id] for n in node.predecessors
+                # )
+            if node.type == NodeType.SUM:
+                # print("Sum", [node_vals[n.id] for n in node.predecessors])
+                value = max(
+                    node_vals[n.id] + np.log(w)
+                    for n, w in zip(node.predecessors, node.weights)
+                )
+                # node_ex_vals[node.id] = logsumexp(
+                #     np.array([node_ex_vals[p.id] for p in node.predecessors]),
+                #     b=node.weights,
+                # )
+
+            node_vals[node.id] = value
+
+        if return_all:
+            return node_vals
+        return node_vals[self.__mspn.id]
+
     @property
     def nodes(self) -> list[Node]:
+        """Nodes in topological ordering"""
         if not hasattr(self, "SPN__nodes"):
             self.__nodes = [
-                Node(node, self.__feature_list)
+                Node(node, self.__feature_list, self.__normalize_data, self.min_density)
                 for node in get_topological_order(self.__mspn)
             ]
         return self.__nodes
@@ -170,3 +259,17 @@ class SPN:
     @property
     def spn_model(self):
         return self.__mspn
+
+    def input_scale(self, feature_i):
+        if self.__normalize_data:
+            return 1
+        else:
+            return self.__data_handler.features[feature_i]._scale
+
+    # def normalize(self, feature_i, vals):
+    #     if self.__normalize_data:
+    #         return vals
+    #     else:
+    #         return self.__data_handler.features[feature_i].encode(
+    #             vals, normalize=True, one_hot=False
+    #         )

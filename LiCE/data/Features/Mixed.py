@@ -80,6 +80,7 @@ class Mixed(Feature):
         vals: np.ndarray[np.float64],
         denormalize: bool = True,
         return_series: bool = True,
+        discretize: bool = False,
     ) -> OneDimData:
         is_one_hot = len(vals.shape) > 1 and vals.shape[1] > 1
 
@@ -89,17 +90,20 @@ class Mixed(Feature):
             for i in range(2, vals.shape[1]):
                 categ_mask |= vals[:, i].astype(bool)
             res[categ_mask] = self.__categ_feat.decode(
-                vals[:, 1:], denormalize, return_series=False
+                vals[:, 1:], denormalize, return_series=False, discretize=discretize
             )[categ_mask]
             cont_scope = vals[:, 0]
         else:
             categ_mask = np.isin(vals, list(self.__categ_feat.value_mapping.values()))
             res[categ_mask] = self.__categ_feat.decode(
-                vals[categ_mask], denormalize, return_series=False
+                vals[categ_mask],
+                denormalize,
+                return_series=False,
+                discretize=discretize,
             )
             cont_scope = vals
         res[~categ_mask] = self.__cont_feat.decode(
-            cont_scope, denormalize, return_series=False
+            cont_scope, denormalize, return_series=False, discretize=discretize
         )[~categ_mask]
 
         if return_series:

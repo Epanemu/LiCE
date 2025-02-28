@@ -79,6 +79,7 @@ class Categorical(Feature):
         vals: np.ndarray[np.float64],
         denormalize: bool = True,
         return_series: bool = True,
+        discretize: bool = False,
     ) -> OneDimData:
         is_one_hot = len(vals.shape) > 1 and vals.shape[1] > 1
         relevant_vals = [0, 1] if is_one_hot else self.__mapped_to
@@ -128,7 +129,12 @@ class Categorical(Feature):
                 adding = True
         return greater
 
-    def allowed_change(self, pre_val: CategValue, post_val: CategValue) -> bool:
+    def allowed_change(
+        self, pre_val: CategValue, post_val: CategValue, encoded=True
+    ) -> bool:
+        if not encoded:
+            pre_val = self.encode([pre_val], one_hot=False)[0]
+            post_val = self.encode([post_val], one_hot=False)[0]
         if self.modifiable:
             if self.monotone == Monotonicity.INCREASING:
                 return post_val in self.greater_than(pre_val) or post_val == pre_val
@@ -136,3 +142,5 @@ class Categorical(Feature):
                 return post_val in self.lower_than(pre_val) or post_val == pre_val
             return True
         return pre_val == post_val
+
+    # TODO fix the numeric/non-numeric value handling

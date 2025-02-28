@@ -21,8 +21,6 @@ class Contiguous(Feature):
         super().__init__(training_vals, name, monotone, modifiable)
         if isinstance(training_vals, pd.Series):
             training_vals = training_vals.to_numpy()
-        self._shift = training_vals.min()
-        self._scale = (training_vals - self._shift).max()
 
         if bounds is not None:
             self.__bounds = bounds
@@ -32,6 +30,9 @@ class Contiguous(Feature):
                 raise ValueError(
                     f"Values of feature {self.name} have a single value and no bounds were preset"
                 )
+        self._shift = self.__bounds[0]
+        self._scale = self.__bounds[1] - self.__bounds[0]
+
         self.__discrete = discrete
 
         normalized = self.__normalize(training_vals)
@@ -63,9 +64,12 @@ class Contiguous(Feature):
         vals: np.ndarray[np.float64],
         denormalize: bool = True,
         return_series: bool = True,
+        discretize: bool = True,
     ) -> OneDimData:
         if denormalize:
             vals = self.__denormalize(vals)
+        if discretize and self.discrete:
+            vals = np.round(vals)
         if return_series:
             return pd.Series(vals.flatten(), name=self.name)
         return vals
@@ -81,7 +85,7 @@ class Contiguous(Feature):
     def discrete(self) -> bool:
         return self.__discrete
 
-    def allowed_change(self, pre_val: float, post_val: float) -> bool:
+    def allowed_change(self, pre_val: float, post_val: float, encoded=True) -> bool:
         if self.modifiable:
             if self.monotone == Monotonicity.INCREASING:
                 return pre_val <= post_val
