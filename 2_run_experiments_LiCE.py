@@ -19,6 +19,7 @@ median = sys.argv[4] == "median"
 quartile = sys.argv[4] == "quartile"
 optimize = sys.argv[4] == "optimize"
 folder = sys.argv[5]
+alpha = 0.1 if len(sys.argv) <= 6 else float(sys.argv[6])
 
 print(time_limit, data_names, folds, median, quartile, optimize, folder)
 prefix = f"results/{folder}"
@@ -69,7 +70,7 @@ for data_name in data_names:
                 optimize_res = lice.generate_counterfactual(
                     sample,
                     not prediction,
-                    ll_opt_coefficient=0.1,
+                    ll_opt_coefficient=alpha,
                     n_counterfactuals=10,
                     time_limit=time_limit,
                     leaf_encoding=leaf_encoding,
