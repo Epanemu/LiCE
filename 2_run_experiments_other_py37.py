@@ -12,8 +12,6 @@ from carla.recourse_methods import CCHVAE, Face
 
 import compared_methods.proplace.proplace as prop
 from compared_methods.carla_helpers import MixedPolytopeDataset, MyNNModel
-from LiCE.data.Features import Categorical, Contiguous
-from nn_model import NNModel
 from compared_methods.proplace.experiments.exputils import (
     get_test_data,
     get_test_data_1,
@@ -21,14 +19,17 @@ from compared_methods.proplace.experiments.exputils import (
     run_rnnce,
     run_rnnce_class0,
 )
+from LiCE.data.Features import Categorical, Contiguous
+from nn_model import NNModel
 
 # trunk-ignore-all(bandit/B301)
 
 data_names = [sys.argv[1]]
 folds = [int(sys.argv[2])]
 proplace_run = sys.argv[3] == "proplace"
+folder = sys.argv[4]
 
-prefix = "results/reproducible_results"
+prefix = f"results/{folder}"
 
 print(data_names, folds, proplace_run)
 

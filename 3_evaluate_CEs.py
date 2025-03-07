@@ -25,7 +25,7 @@ methods = [
 ]
 folds = [0, 1, 2, 3, 4]
 
-path_base = "results/reproducible_results"
+path_base = "results/real_data"
 
 
 def get_info(ce, dhandler, factual_enc, factual_enc_num, time):

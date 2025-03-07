@@ -18,8 +18,9 @@ from nn_model import NNModel
 
 data_names = [sys.argv[1]]
 folds = [int(sys.argv[2])]
+folder = sys.argv[3]
 
-prefix = "results/reproducible_results"
+prefix = f"results/{folder}"
 
 for fold in folds:
     for data_name in data_names:
@@ -70,9 +71,7 @@ for fold in folds:
             # return pd.DataFrame(
             #     dhandler.encode(sample.astype(int)), columns=one_hot_cols
             # )
-            return pd.DataFrame(
-                dhandler.encode(sample.values), columns=one_hot_cols
-            )
+            return pd.DataFrame(dhandler.encode(sample.values), columns=one_hot_cols)
 
         def decode(sample, **kwargs):
             return dhandler.decode(sample.values)

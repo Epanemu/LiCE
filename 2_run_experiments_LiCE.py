@@ -18,9 +18,10 @@ folds = [int(sys.argv[3])]
 median = sys.argv[4] == "median"
 quartile = sys.argv[4] == "quartile"
 optimize = sys.argv[4] == "optimize"
+folder = sys.argv[5]
 
-print(time_limit, data_names, folds, median, quartile, optimize)
-prefix = "results/reproducible_results"
+print(time_limit, data_names, folds, median, quartile, optimize, folder)
+prefix = f"results/{folder}"
 spn_variant = "lower"
 leaf_encoding = "histogram"
 

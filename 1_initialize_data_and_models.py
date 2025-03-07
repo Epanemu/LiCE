@@ -34,7 +34,7 @@ def obtain_definition(data_name: str):
     )
 
 
-name = "reproducible_results"
+name = "real_data"
 
 data_names = ["adult", "gmsc", "credit"]
 for data_name in data_names:
