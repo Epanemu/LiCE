@@ -28,7 +28,7 @@ folds = [0, 1, 2, 3, 4]
 path_base = "results/real_data"
 
 
-def get_info(ce, dhandler, factual_enc, factual_enc_num, time):
+def get_info(ce, ll, dhandler, factual_enc, factual_enc_num, time):
     MADs = np.concatenate([f.MAD for f in dhandler.features])
     MADs[MADs < 1e-6] = 1e-6
     invMADs = 1.0 / MADs
@@ -38,7 +38,7 @@ def get_info(ce, dhandler, factual_enc, factual_enc_num, time):
 
     return {
         "CE": pd.DataFrame(ce.reshape(1, -1), columns=dhandler.feature_names),
-        "ll": lls[max_i],
+        "ll": ll,
         "sparsity": dhandler.n_features
         - np.sum(np.isclose(ce_valid_enc_num, factual_enc_num, atol=1e-6)),
         "distance": np.abs(factual_enc - ce_valid_enc) @ invMADs,
@@ -119,6 +119,7 @@ for data_name in data_names:
 
                 CEs[data_name][method][i]["valid"] = get_info(
                     ces_valid[max_i],
+                    lls[max_i],
                     dhandler,
                     factual_enc,
                     factual_enc_num,
@@ -150,6 +151,7 @@ for data_name in data_names:
                 if ce_actionable is not None:
                     CEs[data_name][method][i]["actionable"] = get_info(
                         ce_actionable,
+                        ce_actionable_ll,
                         dhandler,
                         factual_enc,
                         factual_enc_num,
