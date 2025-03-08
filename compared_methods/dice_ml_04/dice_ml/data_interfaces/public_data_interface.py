@@ -73,7 +73,8 @@ class PublicData:
 
         if len(self.categorical_feature_names) > 0:
             for feature in self.categorical_feature_names:
-                self.data_df[feature] = self.data_df[feature].apply(str)
+                # self.data_df[feature] = self.data_df[feature].apply(str)
+                self.data_df[feature] = self.data_df[feature]
             self.data_df[self.categorical_feature_names] = self.data_df[self.categorical_feature_names].astype(
                 'category')
 

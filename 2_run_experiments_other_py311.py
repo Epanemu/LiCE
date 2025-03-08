@@ -68,9 +68,6 @@ for fold in folds:
                 one_hot_cols.append(f.name)
 
         def encode(sample, **kwargs):
-            # return pd.DataFrame(
-            #     dhandler.encode(sample.astype(int)), columns=one_hot_cols
-            # )
             return pd.DataFrame(dhandler.encode(sample.values), columns=one_hot_cols)
 
         def decode(sample, **kwargs):
