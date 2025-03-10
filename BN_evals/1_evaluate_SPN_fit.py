@@ -66,28 +66,29 @@ def compare_on_BN(name, meta_types, n_train, n_test, runs):
             pickle.dump((ll, lps), f)
 
         # visualize and evaluate the results in 3_visualize_BN_results.ipynb
-        if MetaType.REAL not in meta_types and len(meta_types) < 10:
+        if MetaType.REAL not in meta_types and len(meta_types) < 12:
 
-            def recurse_tv(col_pos, assignment, domains, spn, CPD):
+            def recurse_tv(col_pos, assignment, cols, domains, spn, CPD):
                 if col_pos >= len(domains):
                     diff = abs(
                         likelihood(spn, assignment.to_numpy().reshape((1, -1)))[0, 0]
                         - compute_p(CPD, assignment)
                     )
-                    print(assignment.to_numpy(), diff)
                     return diff
 
                 total = 0
-                k = list(domains.keys())[col_pos]
+                k = cols[col_pos]
                 for val in domains[k]:
                     assignment[k] = val
-                    total += recurse_tv(col_pos + 1, assignment, domains, spn, CPD)
+                    total += recurse_tv(
+                        col_pos + 1, assignment, cols, domains, spn, CPD
+                    )
                 return total
 
             empty_vec = pd.Series(
-                [np.nan] * len(domains), index=domains.keys(), dtype=float
+                [np.nan] * len(domains), index=train_data.columns, dtype=float
             )
-            tv = recurse_tv(0, empty_vec, domains, spn, CPD) / 2
+            tv = recurse_tv(0, empty_vec, train_data.columns, domains, spn, CPD) / 2
             print(f"{name} ({seed}) TOTAL VARIATION: {tv}")
             with open(f"results/bayes_nets/SPN_fit/{name}/TV_{seed}.txt", "w") as f:
                 f.write(f"{tv}")
@@ -98,18 +99,18 @@ if __name__ == "__main__":
     train_samples = 10000
     test_samples = 1000
     runs = 5
-    # compare_on_BN("sprinkler", [MetaType.BINARY] * 4, train_samples, test_samples, runs)
-    # compare_on_BN("asia", [MetaType.BINARY] * 8, train_samples, test_samples, runs)
-    # compare_on_BN("sachs", [MetaType.DISCRETE] * 11, train_samples, test_samples, runs)
-    # compare_on_BN(
-    #     "data/BayesianNetworks/child.bif",
-    #     [MetaType.DISCRETE] * 20,
-    #     train_samples,
-    #     test_samples,
-    #     runs,
-    # )
-    # compare_on_BN("water", [MetaType.DISCRETE] * 32, train_samples, test_samples, runs)
-    # compare_on_BN("alarm", [MetaType.DISCRETE] * 37, train_samples, test_samples, runs)
+    compare_on_BN("sprinkler", [MetaType.BINARY] * 4, train_samples, test_samples, runs)
+    compare_on_BN("asia", [MetaType.BINARY] * 8, train_samples, test_samples, runs)
+    compare_on_BN("sachs", [MetaType.DISCRETE] * 11, train_samples, test_samples, runs)
+    compare_on_BN(
+        "data/BayesianNetworks/child.bif",
+        [MetaType.DISCRETE] * 20,
+        train_samples,
+        test_samples,
+        runs,
+    )
+    compare_on_BN("water", [MetaType.DISCRETE] * 32, train_samples, test_samples, runs)
+    compare_on_BN("alarm", [MetaType.DISCRETE] * 37, train_samples, test_samples, runs)
     compare_on_BN(
         "data/BayesianNetworks/win95pts.bif",
         [MetaType.BINARY] * 76,
