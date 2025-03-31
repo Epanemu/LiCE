@@ -9,7 +9,7 @@ For a simple example of how to use our method, see the `example.ipynb` Jupyter N
 
 This is the official Python implementation of the LiCE method introduced in the paper [_Generating Likely Counterfactuals Using Sum-Product Networks_](https://openreview.net/pdf?id=rGyi8NNqB0).
 
-Or see this 5-minute [https://recorder-v3.slideslive.com/?share=98724&s=2b116c67-577b-4c90-90fa-c37550a4c7a1](video explanation) of our paper.
+Or see this 5-minute [video explanation](https://recorder-v3.slideslive.com/?share=98724&s=2b116c67-577b-4c90-90fa-c37550a4c7a1) of our paper.
 
 Cite our work using this BibTeX:
 
