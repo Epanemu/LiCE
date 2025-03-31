@@ -162,7 +162,10 @@ class LiCE:
             spn_variant=spn_variant,
         )
         t_built = perf_counter()
-        opt = pyo.SolverFactory(solver_name, solver_io="python")
+        if solver_name == "gurobi":
+            opt = pyo.SolverFactory(solver_name, solver_io="python")
+        else:
+            opt = pyo.SolverFactory(solver_name)
 
         if n_counterfactuals > 1:
             if solver_name != "gurobi":
@@ -180,7 +183,17 @@ class LiCE:
                 expr=model.input_encoding.total_cost <= ce_max_distance
             )
 
-        if solver_name == "gurobi":
+        if "cplex" in solver_name:
+            opt.options["timelimit"] = time_limit
+        elif "glpk" in solver_name:
+            opt.options["tmlim"] = time_limit
+        elif "xpress" in solver_name:
+            opt.options["soltimelimit"] = time_limit
+        elif "highs" in solver_name:
+            opt.options["time_limit"] = time_limit
+            # Use the below instead for XPRESS versions before 9.0
+            # self.solver.options['maxtime'] = TIME_LIMIT
+        elif solver_name == "gurobi":
             opt.options["TimeLimit"] = time_limit
             # opt.options["Aggregate"] = 0
             # opt.options["OptimalityTol"] = 1e-3
