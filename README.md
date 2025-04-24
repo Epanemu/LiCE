@@ -1,7 +1,12 @@
 # LiCE: Likely Counterfactual Explanations
 
-LiCE is a method utilizing Mixed-Integer Optimization (MIO) to provide local Counterfactual Explanations (CEs) of a trained Neural Network classifier (other ML classifiers are possible to be added with little coding effort, contact us, if help is needed).
-It uses a trained Sum-Product Network (SPN) to estimate the likelihood of the CE. We approximate it within MIO, enabling us to optimize a combination of plausibility (likelihood) and similarity (distance from the original sample).
+LiCE is a method utilizing Mixed-Integer Optimization (MIO) to provide local Counterfactual Explanations (CEs) of a trained Neural Network classifier (multiple other ML classifiers are possible to be added with little coding effort, contact us, if help is needed).
+
+It uses a trained Sum-Product Network (SPN) to estimate the likelihood of the CE. We approximate the within MIO, enabling us to optimize a combination of plausibility (likelihood) and similarity (distance from the original sample).
+
+Our method pareto-dominates comparable methods focusing on plausibility.
+![plot showing pareto dominance of LiCE on Credit data](results/credit_methods.png)
+LiCE achieves high likelihood (plausibility) and low sparsity (few generated attributes).
 
 For a simple example of how to use our method, see the `example.ipynb` Jupyter Notebook.
 
