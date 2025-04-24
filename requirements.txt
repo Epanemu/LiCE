@@ -9,6 +9,7 @@ torch==2.1.1
 ucimlrepo==0.0.6
 
 # specific
+tqdm==4.67.1
 Pyomo==6.7.1
 onnx==1.16.0
 omlt==1.1
