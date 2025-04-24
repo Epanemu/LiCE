@@ -189,10 +189,10 @@ class LiCE:
             opt.options["tmlim"] = time_limit
         elif "xpress" in solver_name:
             opt.options["soltimelimit"] = time_limit
-        elif "highs" in solver_name:
-            opt.options["time_limit"] = time_limit
             # Use the below instead for XPRESS versions before 9.0
             # self.solver.options['maxtime'] = TIME_LIMIT
+        elif "highs" in solver_name:
+            opt.options["time_limit"] = time_limit
         elif solver_name == "gurobi":
             opt.options["TimeLimit"] = time_limit
             # opt.options["Aggregate"] = 0
@@ -203,7 +203,7 @@ class LiCE:
             print("Time limit not set! Not implemented for your solver")
 
         t_prepped = perf_counter()
-        result = opt.solve(model, load_solutions=True, tee=verbose)
+        result = opt.solve(model, load_solutions=False, tee=verbose)
         t_solved = perf_counter()
 
         self.__t_build = t_built - t_start
@@ -219,6 +219,7 @@ class LiCE:
             if result.solver.termination_condition == TerminationCondition.optimal:
                 # print(pyo.value(model.obj))
                 # print(model.spn.node_out[self.__spn.out_node_id].value)
+                model.solutions.load_from(result)
                 CEs = self.__get_CEs(n_counterfactuals, model, factual, opt)
                 self.__t_tot = perf_counter() - t_start
                 self.__optimal = True
@@ -231,7 +232,7 @@ class LiCE:
             print("Infeasible formulation")
             if verbose:
                 write_iis(model, "IIS.ilp", solver="gurobi")
-            self.__t_tot = (perf_counter() - t_start,)
+            self.__t_tot = perf_counter() - t_start
             self.__optimal = False
             return []
         elif (
@@ -239,9 +240,14 @@ class LiCE:
             and result.solver.termination_condition == TerminationCondition.maxTimeLimit
         ):
             print("TIME LIMIT")
-            CEs = self.__get_CEs(n_counterfactuals, model, factual, opt)
-            self.__t_tot = (perf_counter() - t_start,)
             self.__optimal = False
+            try:
+                model.solutions.load_from(result)
+            except ValueError:
+                self.__t_tot = perf_counter() - t_start
+                return []
+            CEs = self.__get_CEs(n_counterfactuals, model, factual, opt)
+            self.__t_tot = perf_counter() - t_start
             return CEs
         # else:
 
