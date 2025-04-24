@@ -20,9 +20,9 @@ Cite our work using this BibTeX:
 
 ```bibtex
 @inproceedings{
-    nemecek2025generating,
+    nemecek2025lice,
     title={Generating Likely Counterfactuals Using Sum-Product Networks},
-    author={Ji{\v{r}}{\'\i} N{\v{e}}me{\v{c}}ek and Tom{\'a}{\v{s}} Pevn{\'y} and Jakub Mare{\v{c}}ek},
+    author={Ji{\v{r}}{\'i} N{\v{e}}me{\v{c}}ek and Tom{\'a}{\v{s}} Pevn{\'y} and Jakub Mare{\v{c}}ek},
     booktitle={The Thirteenth International Conference on Learning Representations},
     year={2025},
     url={https://openreview.net/forum?id=rGyi8NNqB0}
